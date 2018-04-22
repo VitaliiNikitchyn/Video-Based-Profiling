@@ -5,6 +5,8 @@
 
 #include <opencv2/opencv.hpp>
 #include <opencv2/face.hpp>
+#include <opencv2/core/cuda.hpp>
+
 
 namespace Ui {
 class MainWindow;
@@ -37,20 +39,23 @@ private slots:
 
 private:
     Ui::MainWindow *ui;
-
     const int FRAME_WIDTH = 640;
     const int FRAME_HEIGHT = 480;    
 
     cv::Ptr<cv::face::FaceRecognizer> recognizer;
+
     std::vector<cv::Mat> images;
     std::vector<int> labels;
     void init_trainingset();
-    std::string composeName(double confidence, int predictedLabel);
 
     cv::CascadeClassifier face_cascade;
     cv::VideoCapture capture;
-    QTimer *imageTimer;
+    QTimer *timer;
     FaceApiClient *faceApi;
+    QList<Person*> personList;
+
+    //QListWidget update
+    void addPersonToListWidget(Person* person);
 
     cv::Mat img;
 };

@@ -3,6 +3,7 @@
 
 #include <QObject>
 #include <QRect>
+#include <QDataStream>
 
 class Person : public QObject
 {
@@ -10,8 +11,9 @@ class Person : public QObject
 public:
     explicit Person(QObject *parent = nullptr);
 
-    int getLabel() const;
-    void setLabel(int value);
+
+    qint32 getLabel() const;
+    void setLabel(qint32 value);
 
     QString getName() const;
     void setName(const QString &value);
@@ -22,8 +24,8 @@ public:
     float getAge() const;
     void setAge(float value);
 
-    QString getFacePath() const;
-    void setFacePath(const QString &value);
+    QString getImgPath() const;
+    void setImgPath(const QString &value);
 
     QString getFaceID() const;
     void setFaceID(const QString &value);
@@ -31,14 +33,21 @@ public:
     QRect getRect() const;
     void setRect(const QRect &value);
 
+    friend QDataStream &operator<<(QDataStream &out, const Person *person);
+    friend QDataStream &operator>>(QDataStream &in, Person *person);
+
+    static void addPerson(QList<Person*> list);
+    static QList<Person*> loadPerson();
+
 private:
-    int label;
+    qint32 label;
     QString faceID;
     QString name;
     QString gender;
     double age;
-    QString facePath;
+    QString imgPath;
     QRect rect;
+
 
 signals:
 

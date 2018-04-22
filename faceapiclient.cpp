@@ -13,7 +13,7 @@
 
 FaceApiClient::FaceApiClient(QObject *parent) : QObject(parent)
 {
-    manager = new QNetworkAccessManager(this);
+    manager = new QNetworkAccessManager(this);    
 }
 
 FaceApiClient::~FaceApiClient()
@@ -27,22 +27,24 @@ void FaceApiClient::faceDetect(QByteArray requestBody)
     request.setRawHeader("Ocp-Apim-Subscription-Key", "58dfaa3c653f49e2aeec90aab012114d");
     request.setRawHeader("Content-Type", "application/octet-stream");
 
-    reply = manager->post(request, requestBody);
-    connect(reply, SIGNAL(finished()), this, SLOT(onDetectFaceFinished()));
-
+    onFaceDetectReply = manager->post(request, requestBody);
+    connect(onFaceDetectReply, SIGNAL(finished()), this, SLOT(onDetectFaceFinished()));
 }
 
 void FaceApiClient::onDetectFaceFinished()
 {
-    if (reply->error()) {
-        qDebug() << "reply error" << reply->errorString(), reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toString();
+    if (onFaceDetectReply->error()) {
+        qDebug() << "reply error" << onFaceDetectReply->errorString();
+        qDebug() << onFaceDetectReply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toString();
         return;
     }
-    QList<Person*> list;
-    QJsonArray jsonArr = QJsonDocument::fromJson(reply->readAll()).array();
+    QList<Person*> list;    
+    QJsonArray jsonArr = QJsonDocument::fromJson(onFaceDetectReply->readAll()).array();
     for (int i = 0; i < jsonArr.size(); i++) {
         QJsonObject obj = jsonArr.at(i).toObject();
         QJsonObject faceRectangle = obj.value("faceRectangle").toObject();
+        QJsonObject faceAttribute = obj.value("faceAttributes").toObject();
+
         QRect rect;
         rect.setTop(faceRectangle.value("top").toInt());
         rect.setLeft(faceRectangle.value("left").toInt());
@@ -51,13 +53,13 @@ void FaceApiClient::onDetectFaceFinished()
 
         Person *person = new Person();
         person->setFaceID(obj.value("faceId").toString());
-        person->setGender(obj.value("gender").toString());
-        person->setAge(obj.value("age").toDouble());
+        person->setGender(faceAttribute.value("gender").toString());
+        person->setAge(faceAttribute.value("age").toDouble());
         person->setRect(rect);
-        list.append(person);
+        list.append(person);        
     }
 
     emit detectedFaces(list);
-    reply->deleteLater();
-    reply = nullptr;
+    //onFaceDetectReply->deleteLater();
+    //onFaceDetectReply = nullptr;
 }

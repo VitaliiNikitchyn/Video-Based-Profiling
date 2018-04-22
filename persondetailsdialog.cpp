@@ -7,7 +7,7 @@ PersonDetailsDialog::PersonDetailsDialog(Person *person, QWidget *parent) :
     ui(new Ui::PersonDetailsDialog)
 {
     ui->setupUi(this);
-    ui->imageLabel->setPixmap(QPixmap(person->getFacePath()).scaled(135, 150));
+    ui->imageLabel->setPixmap(QPixmap(person->getImgPath()).scaled(135, 150));
     ui->nameLineEdit->setText(person->getName());
     ui->ageSpinBox->setValue(person->getAge());
     ui->genderLineEdit->setText(person->getGender());
