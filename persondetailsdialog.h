@@ -8,12 +8,13 @@ class PersonDetailsDialog;
 }
 
 class Person;
+class QListWidgetItem;
 class PersonDetailsDialog : public QDialog
 {
     Q_OBJECT
 
 public:
-    explicit PersonDetailsDialog(Person *person, QWidget *parent = 0);
+    explicit PersonDetailsDialog(Person *person, QListWidgetItem *listWidgetItem, QWidget *parent = 0);
     ~PersonDetailsDialog();
 
 private slots:
@@ -22,6 +23,7 @@ private slots:
 private:
     Ui::PersonDetailsDialog *ui;
     Person *person;
+    QListWidgetItem *listWidgetItem;
 };
 
 #endif // PERSONDETAILSDIALOG_H

@@ -2,6 +2,7 @@
 #include "ui_mainwindow.h"
 
 #include "person.h"
+#include "personrepository.h"
 #include "persondetailsdialog.h"
 #include "faceapiclient.h"
 
@@ -14,9 +15,14 @@ MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow)
 {
-    ui->setupUi(this);        
+    ui->setupUi(this);
+
+    personRepository = new PersonRepository();
+    personRepository->load(personRepositoryPath);
+
     faceApi = new FaceApiClient(this);
-    connect(faceApi, SIGNAL(detectedFaces(QList<Person*>)), this, SLOT(onDetectedFaces(QList<Person*>)));
+    connect(faceApi, SIGNAL(faceDetected(QList<Person*>)), this, SLOT(onFaceDetected(QList<Person*>)));
+    connect(faceApi, SIGNAL(groupedFaces(QList<Person*>, QList<int>)), this, SLOT(onFaceGrouped(QList<Person*>, QList<int>)));
 
     if (!face_cascade.load("./haarcascade_frontalface_alt.xml")) {
         qDebug() << "-(!)Error loading face cascade";
@@ -27,40 +33,28 @@ MainWindow::MainWindow(QWidget *parent) :
     capture.set(CV_CAP_PROP_FRAME_WIDTH, FRAME_WIDTH);
     capture.set(CV_CAP_PROP_FRAME_HEIGHT, FRAME_HEIGHT);
 
-    recognizer = cv::face::LBPHFaceRecognizer::create();
-    //recognizer = cv::face::FisherFaceRecognizer::create();
-    //recognizer->read("./recognizerModel");
-    init_trainingset();
-    recognizer->train(images, labels);
+    init_recognizer();
 
     timer = new QTimer(this);
-    timer->setInterval(40);
+    timer->setInterval(50);
     connect(timer, SIGNAL(timeout()), this, SLOT(processFrame()));
 
-    ui->listWidget->setIconSize(QSize(75, 75));
 
-/*
     //load from file list of persons
+    /*
     Person *person1 = new Person();
     person1->setName("Vitalii");
     person1->setAge(22.5);
     person1->setGender("male");
-    person1->setLabel(1);
-    person1->setFacePath("./images/main.png");
+    person1->setLabel(0);
+    person1->setFaceID("c834ea1d-11ba-40cf-8327-3dc0af43dd61");
+    person1->setImgPath("./images/main.png");
+    personRepository->create(person1);
+    personRepository->save(personRepositoryPath);
+*/
 
-    Person *person2 = new Person();
-    person2->setName("Max");
-    person2->setAge(20.5);
-    person2->setGender("male");
-    //person2->setLabel(2);
-    person2->setFacePath("./training_set/max/f1.png");
-
-    QList<Person*> list;
-    list.append(person1);
-    list.append(person2);
-    Person::addPerson(list);*/
-
-    personList = Person::loadPerson();
+    QList<Person*> personList = personRepository->getAll();
+    ui->listWidget->setIconSize(QSize(75, 75));
     for (int i = 0; i < personList.size(); i++) {
         QListWidgetItem *item = new QListWidgetItem();
         item->setText(personList[i]->getName());
@@ -69,7 +63,6 @@ MainWindow::MainWindow(QWidget *parent) :
         ui->listWidget->addItem(item);
     }
 }
-
 
 MainWindow::~MainWindow()
 {
@@ -84,14 +77,15 @@ void MainWindow::closeEvent()
     cv::destroyAllWindows();
 }*/
 
-
-void MainWindow::init_trainingset()
+void MainWindow::init_recognizer()
 {
     QFile file("./Trainingsetpath.txt");
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
         qDebug() << "error openning Trainingsetpath";
         return;
     }
+    std::vector<cv::Mat> images;
+    std::vector<int> labels;
 
     QTextStream in(&file);
     while (!in.atEnd()) {
@@ -106,6 +100,10 @@ void MainWindow::init_trainingset()
         images.push_back(img);
         labels.push_back(label);
     }
+    recognizer = cv::face::LBPHFaceRecognizer::create();
+    //recognizer = cv::face::FisherFaceRecognizer::create();
+    //recognizer->read("./recognizerModel");
+    recognizer->train(images, labels);
 }
 
 void MainWindow::on_start_video_btn_clicked()
@@ -126,6 +124,7 @@ void MainWindow::on_pushButton_clicked()
 
 void MainWindow::on_addPersonBtn_clicked()
 {    
+    ui->addPersonBtn->setEnabled(false);
     //cv::Mat img;
     capture.read(img);
     //convert from cv::Mat to QByteArray
@@ -136,9 +135,6 @@ void MainWindow::on_addPersonBtn_clicked()
     qImage.save(&buffer, "PNG");
 
     faceApi->faceDetect(binaryData);
-
-    //cv::imshow("screenshot", img);
-    //cv::imshow("face", cameraFrame(faces[0]));
 }
 
 void MainWindow::processFrame()
@@ -158,16 +154,23 @@ void MainWindow::processFrame()
         //cv::Mat face_resized;
         //cv::resize(face, face_resized, cv::Size(80, 80), 1.0, 1.0, cv::INTER_CUBIC);
 
+        // Calculate the position for annotated text
+        int pos_x = std::max(faces[i].tl().x - 10, 0);
+        int pos_y = std::max(faces[i].tl().y - 10, 0);
+        std::string box_text;
+
         int predictedLabel = -1;
         double confidence = 0.0;
         recognizer->predict(face, predictedLabel, confidence);
 
-        std::string box_text = std::to_string(confidence) + " " + std::to_string(predictedLabel);
-        // Calculate the position for annotated text
-        int pos_x = std::max(faces[i].tl().x - 10, 0);
-        int pos_y = std::max(faces[i].tl().y - 10, 0);
-        // And now put it into the image:
-        cv::putText(cameraFrame, box_text, cv::Point(pos_x, pos_y), cv::FONT_HERSHEY_PLAIN, 1.0, CV_RGB(0,255,0), 2.0);
+        if (confidence < 112) {
+            //box_text = std::to_string(confidence) + " " + std::to_string(predictedLabel);
+            box_text = personRepository->getNameByLabel(predictedLabel).toStdString();
+            cv::putText(cameraFrame, box_text, cv::Point(pos_x, pos_y), cv::FONT_HERSHEY_PLAIN, 1.0, CV_RGB(0,255,0), 2.0);
+        } else {
+            box_text = "Unrecognized";
+            cv::putText(cameraFrame, box_text, cv::Point(pos_x, pos_y), cv::FONT_HERSHEY_PLAIN, 1.0, CV_RGB(255,0,0), 2.0);
+        }
         cv::rectangle(cameraFrame, faces[i], CV_RGB(0, 255,0), 1); //rect around a face
     }
     cv::imshow("face_recognizer", cameraFrame);
@@ -177,33 +180,56 @@ void MainWindow::on_listWidget_itemDoubleClicked(QListWidgetItem *item)
 {
     //get associated data from QListWidgetItem stored in QVariant
     Person *person = item->data(Qt::UserRole).value<Person*>();
-    PersonDetailsDialog dialog(person, this);
+    PersonDetailsDialog dialog(person, item, this);
     //dialog->setAttribute(Qt::WA_DeleteOnClose);
     dialog.exec();
     //update item
 }
 
-void MainWindow::onDetectedFaces(QList<Person*> list)
-{
+void MainWindow::onFaceDetected(QList<Person*> list)
+{          
     for (int i = 0; i < list.size(); i++) {
-        personList.append(person);
         Person *person = list[i];
+        personRepository->create(person);
         cv::Rect rect(person->getRect().x(), person->getRect().y(), person->getRect().width(), person->getRect().height());
-        cv::rectangle(img, rect, cv::Scalar(0, 255, 0));        
-
-        cv::Mat face = img(rect);        
-        //save Mat face to localFaceDB
-        //person.setImgPath from previous step
-        //add to listWidget
-
-        //from global list get all faceIDs and post to faceAPI
-
-        //cv::imshow("screenshot" + std::to_string(i), face);        
-        qDebug() << "New person: gender: " << person->getGender() << "  age: " << person->getAge();
+        cv::rectangle(img, rect, cv::Scalar(0, 255, 0));
+        qDebug() << "New: gender: " << person->getGender() << " age: " << person->getAge() << "id: " << person->getFaceID();
     }
     cv::imshow("screenshot", img);
-
-    //qDeleteAll(list); //remove all objects from memory
-    list.clear();
+    faceApi->faceGroup(personRepository->getAllIdAndLabel(), personRepository->getAvailableLabel());
 }
 
+void MainWindow::onFaceGrouped(QList<Person*> list, QList<int> addedLebels)
+{
+    ui->addPersonBtn->setEnabled(true);
+    personRepository->setAvailableLabel(personRepository->getAvailableLabel() + addedLebels.size());
+
+    std::vector<cv::Mat> images;
+    std::vector<int> labels;
+    for (int i = 0; i < list.size(); i++) {
+        Person *person = list.at(i);
+        cv::Rect rect(person->getRect().x(), person->getRect().y(), person->getRect().width(), person->getRect().height());
+        cv::Mat face = img(rect);
+        int trainNumb = 6;
+        //save face img
+        if (addedLebels.contains(person->getLabel())) {
+            QString imgPath = "./Person/" + person->getFaceID() + ".jpg";
+            person->setImgPath(imgPath);
+            cv::imwrite(imgPath.toStdString(), face);
+
+            //add to listWidget
+            QListWidgetItem *item = new QListWidgetItem();
+            item->setText(person->getName());
+            item->setIcon(QIcon(person->getImgPath()));
+            item->setData(Qt::UserRole, QVariant::fromValue(person));
+            ui->listWidget->addItem(item);
+            trainNumb = 1;
+        }
+        cv::cvtColor(face, face, CV_RGB2GRAY);
+        for (int j = 0; j < trainNumb; j++) {
+            images.push_back(face);
+            labels.push_back(person->getLabel());
+        }
+    }
+    recognizer->update(images, labels);
+}

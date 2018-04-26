@@ -29,13 +29,15 @@ SOURCES += \
         mainwindow.cpp \
     person.cpp \
     persondetailsdialog.cpp \
-    faceapiclient.cpp
+    faceapiclient.cpp \
+    personrepository.cpp
 
 HEADERS += \
         mainwindow.h \
     person.h \
     persondetailsdialog.h \
-    faceapiclient.h
+    faceapiclient.h \
+    personrepository.h
 
 FORMS += \
         mainwindow.ui \

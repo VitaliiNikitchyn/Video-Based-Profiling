@@ -2,6 +2,7 @@
 #define FACEAPICLIENT_H
 
 #include <QObject>
+#include <QHash>
 
 class QNetworkAccessManager;
 class QNetworkReply;
@@ -13,19 +14,23 @@ public:
     explicit FaceApiClient(QObject *parent = nullptr);
     ~FaceApiClient();
     void faceDetect(QByteArray requestBody);
-    void faceGroup();
+    void faceGroup(QHash<QString, qint32> allPersonHash, int availableLabel);
 
 signals:
-    void detectedFaces(QList<Person*> list);
-    void groupedFaces();
+    void faceDetected(QList<Person*> list);
+    void groupedFaces(QList<Person*>, QList<int> addedLabels);
 
 public slots:
-    void onDetectFaceFinished();
+    void onDetectFaceFinished(QNetworkReply *reply);
+    void onGroupFaceFinished(QNetworkReply *reply);
 
 private:
-    QNetworkAccessManager *manager;
-    QNetworkReply *onFaceDetectReply;
-    QNetworkReply *onFaceGroupReply;
+    QNetworkAccessManager *faceDetectmanager;
+    QNetworkAccessManager *faceGroupManager;
+
+    QHash<QString, Person*> newPersonHash;
+    QHash<QString, qint32> allPersonHash;
+    int availableLabel;
 };
 
 #endif // FACEAPICLIENT_H

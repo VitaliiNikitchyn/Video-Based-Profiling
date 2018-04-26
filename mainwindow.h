@@ -5,7 +5,6 @@
 
 #include <opencv2/opencv.hpp>
 #include <opencv2/face.hpp>
-#include <opencv2/core/cuda.hpp>
 
 
 namespace Ui {
@@ -16,6 +15,7 @@ class QTimer;
 class QListWidgetItem;
 class FaceApiClient;
 class Person;
+class PersonRepository;
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -35,26 +35,24 @@ private slots:
 
     void on_listWidget_itemDoubleClicked(QListWidgetItem *item);
 
-    void onDetectedFaces(QList<Person*> list);
+    void onFaceDetected(QList<Person*> list);
+    void onFaceGrouped(QList<Person *> list, QList<int> addedLebels);
 
 private:
     Ui::MainWindow *ui;
-    const int FRAME_WIDTH = 640;
-    const int FRAME_HEIGHT = 480;    
+    const int FRAME_WIDTH = 500;//640; //480
+    const int FRAME_HEIGHT = 340;//480; //320
+    const QString personRepositoryPath = "./person.txt";
 
     cv::Ptr<cv::face::FaceRecognizer> recognizer;
-
-    std::vector<cv::Mat> images;
-    std::vector<int> labels;
-    void init_trainingset();
+    void init_recognizer();
 
     cv::CascadeClassifier face_cascade;
     cv::VideoCapture capture;
     QTimer *timer;
     FaceApiClient *faceApi;
-    QList<Person*> personList;
+    PersonRepository *personRepository;
 
-    //QListWidget update
     void addPersonToListWidget(Person* person);
 
     cv::Mat img;

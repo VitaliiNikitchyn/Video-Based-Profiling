@@ -1,5 +1,4 @@
 #include "person.h"
-#include <QFile>
 #include <QDebug>
 
 Person::Person(QObject *parent) : QObject(parent)
@@ -75,39 +74,6 @@ void Person::setRect(const QRect &value)
     rect = value;
 }
 
-void Person::addPerson(QList<Person *> list)
-{
-    QFile file("./person.txt");
-    file.open(QIODevice::Append);
-    QDataStream out(&file);
-    out.setVersion(QDataStream::Qt_5_10);
-
-    for (int i = 0; i < list.size(); i++) {
-        out << list[i];
-    }
-    file.flush();
-    file.close();
-}
-
-QList<Person *> Person::loadPerson()
-{
-    QList<Person *> list;
-    QFile file("./person.txt");
-    if (!file.open(QIODevice::ReadOnly)) {
-        qDebug("cannot load persons. Error file opening");
-        return list;
-    }
-    QDataStream in(&file);
-    in.setVersion(QDataStream::Qt_5_10);
-    while (!file.atEnd()) {
-        Person *person = new Person();
-        in >> person;
-        list.append(person);
-    }
-    file.close();
-    return list;
-}
-
 QDataStream &operator<<(QDataStream &out, const Person *person)
 {
     out << person->label;
@@ -118,7 +84,6 @@ QDataStream &operator<<(QDataStream &out, const Person *person)
     out << person->imgPath;
     return out;
 }
-
 
 QDataStream &operator>>(QDataStream &in, Person *person)
 {   

@@ -11,7 +11,6 @@ class Person : public QObject
 public:
     explicit Person(QObject *parent = nullptr);
 
-
     qint32 getLabel() const;
     void setLabel(qint32 value);
 
@@ -33,11 +32,9 @@ public:
     QRect getRect() const;
     void setRect(const QRect &value);
 
+    //friend to access private members
     friend QDataStream &operator<<(QDataStream &out, const Person *person);
     friend QDataStream &operator>>(QDataStream &in, Person *person);
-
-    static void addPerson(QList<Person*> list);
-    static QList<Person*> loadPerson();
 
 private:
     qint32 label;
@@ -47,7 +44,6 @@ private:
     double age;
     QString imgPath;
     QRect rect;
-
 
 signals:
 
